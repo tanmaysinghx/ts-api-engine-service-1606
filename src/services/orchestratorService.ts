@@ -44,6 +44,8 @@ export const executeWorkflow = async (workflowCode: string, apiEndpoint: string,
     steps.push({ step: "Ntofication Step", status: "PENDING", timestamp: new Date().toISOString() });
   }
 
+  steps.push({ step: "Log API call", status: "SUCCESS", timestamp: new Date().toISOString() });
+
   const forwardHeaders = { ...requestData.headers };
   ["host", "connection", "content-length"].forEach(h => delete forwardHeaders[h]);
   forwardHeaders["x-orchestrator-transaction-id"] = transactionId;
