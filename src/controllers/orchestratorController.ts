@@ -6,9 +6,16 @@ export const triggerWorkflowController = async (req: Request, res: Response) => 
   const { workflowCode } = req.params;
 
   let endpoints: string[] = [];
-  if (typeof req.query.apiEndpoint === "string") endpoints = [req.query.apiEndpoint];
-  else if (Array.isArray(req.body?.endpoints)) endpoints = req.body.endpoints;
-  else if (typeof req.body?.endpoint === "string") endpoints = [req.body.endpoint];
+  if (typeof req.query.apiEndpoint === "string") {
+    endpoints.push(req.query.apiEndpoint);
+  }
+  if (Array.isArray(req.body?.endpoints)) {
+    endpoints.push(...req.body.endpoints.filter((e: any) => typeof e === "string" && e.trim()));
+  }
+  if (typeof req.body?.endpoint === "string") {
+    endpoints.push(req.body.endpoint);
+  }
+  endpoints = [...new Set(endpoints)].filter(Boolean);
 
   if (!endpoints.length) {
     const errorResponse: WorkflowErrorResponse = {
@@ -41,35 +48,45 @@ export const triggerWorkflowController = async (req: Request, res: Response) => 
     }
 
     const payload = results.length === 1 ? results[0] : results;
+
     const allSteps = Array.isArray(payload)
       ? payload.flatMap(p => p.workflowSteps)
       : payload.workflowSteps;
 
     const totalDurationMs = Array.isArray(payload)
-      ? payload.reduce((acc, p) => acc + p.totalMs, 0)
+      ? payload.reduce((acc, p) => acc + (p.totalMs || 0), 0)
       : payload.totalMs;
 
     const stepCount = allSteps.length;
+    const summaryMicroservice = Array.isArray(payload)
+      ? payload.map(p => p.microservice.name).join(",")
+      : payload.microservice.name;
 
     const successResponse: WorkflowSuccessResponse = {
       success: true,
       transactionId,
       message: "Workflow executed successfully",
       configSummary: {
-        microservice: Array.isArray(payload)
-          ? payload.map(p => p.microservice.name).join(",")
-          : payload.microservice.name,
+        microservice: summaryMicroservice,
         url: endpoints.join(","),
-        tokenCheck: allSteps.some(s => s.step === "TokenCheck"),
-        otpFlow: allSteps.some(s => s.step === "OTPFlow"),
-        notification: allSteps.some(s => s.step === "Notification"),
+        tokenCheck: allSteps.some((s: { step: string; }) => s.step === "TokenCheck"),
+        otpFlow: allSteps.some((s: { step: string; }) => s.step === "OTPFlow"),
+        notification: allSteps.some((s: { step: string; }) => s.step === "Notification"),
         workflowVersion: "1.0.0",
         stepCount
       },
       workflowTrace: allSteps,
-      timing: { start: new Date(startTime).toISOString(), end: new Date().toISOString(), durationMs: totalDurationMs },
+      timing: {
+        start: new Date(startTime).toISOString(),
+        end: new Date().toISOString(),
+        durationMs: totalDurationMs
+      },
       diagnosticCodes: [],
-      data: { downstreamResponse: Array.isArray(payload) ? payload.map(p => p.downstreamBody) : payload.downstreamBody },
+      data: {
+        downstreamResponse: Array.isArray(payload)
+          ? payload.map(p => p.downstreamBody)
+          : payload.downstreamBody
+      },
       errors: null,
       meta: { timestamp: new Date().toISOString(), apiVersion: "v1", engineVersion: "1.0.0" }
     };
@@ -80,7 +97,6 @@ export const triggerWorkflowController = async (req: Request, res: Response) => 
       success: false,
       transactionId,
       message: err.message || "Workflow execution failed",
-      otpGenerated: false,
       workflowTrace: err.workflowSteps || [],
       diagnosticCodes: [],
       data: null,

@@ -2,24 +2,12 @@ import Workflow from "../models/WorkflowSchema.js";
 import ServiceRegistry from "../models/ServiceRegistrySchema.js";
 import axios, { AxiosRequestConfig } from "axios";
 
-/**
- * Normalize endpoint string to start with '/'
- */
 function normalizeEndpoint(ep: string): string {
   if (!ep) return "/";
   return ep.startsWith("/") ? ep : "/" + ep;
 }
 
-/**
- * Execute a single workflow endpoint
- */
-export const executeWorkflow = async (
-  workflowCode: string,
-  apiEndpoint: string,
-  requestData: { body?: any; headers?: any; query?: any },
-  transactionId: string,
-  originalMethod?: string
-) => {
+export const executeWorkflow = async (workflowCode: string, apiEndpoint: string, requestData: { body?: any; headers?: any; query?: any }, transactionId: string, originalMethod?: string) => {
   const startTime = Date.now();
 
   const workflow = await Workflow.findOne({ workflowId: workflowCode }).lean();
@@ -30,11 +18,11 @@ export const executeWorkflow = async (
 
   const env = workflow.environment || "local";
 
-  // Determine base URL
-  let baseUrl: string | undefined;
+  let baseUrl: string | undefined = undefined;
   if (service.baseUrls) {
     if (typeof service.baseUrls.get === "function") baseUrl = (service.baseUrls as unknown as Map<string, string>).get(env);
-    if (!baseUrl && (service.baseUrls as any)[env]) baseUrl = (service.baseUrls as any)[env];
+    if (!baseUrl && typeof (service.baseUrls as any)[env] === "string")
+      baseUrl = (service.baseUrls as any)[env];
   }
   baseUrl = baseUrl || (service as any).baseUrl || (service as any).baseURI;
   if (!baseUrl) throw new Error(`Base URL not found for environment '${env}' for microservice ${service.microserviceId}`);
@@ -44,17 +32,18 @@ export const executeWorkflow = async (
 
   const steps: any[] = [];
 
-  // Token check placeholder
   if (workflow.tokenCheck) {
-    steps.push({ step: "TokenCheck", status: "SKIPPED_OR_PASSED", timestamp: new Date().toISOString() });
+    steps.push({ step: "TokenCheck Step", status: "SKIPPED_OR_PASSED", timestamp: new Date().toISOString() });
   }
 
-  // OTP flow placeholder
   if (workflow.otpFlow) {
-    steps.push({ step: "OTPFlow", status: "PENDING", timestamp: new Date().toISOString() });
+    steps.push({ step: "OTPFlow Step", status: "PENDING", timestamp: new Date().toISOString() });
   }
 
-  // Prepare headers
+  if (workflow.notification) {
+    steps.push({ step: "Ntofication Step", status: "PENDING", timestamp: new Date().toISOString() });
+  }
+
   const forwardHeaders = { ...requestData.headers };
   ["host", "connection", "content-length"].forEach(h => delete forwardHeaders[h]);
   forwardHeaders["x-orchestrator-transaction-id"] = transactionId;
@@ -67,7 +56,7 @@ export const executeWorkflow = async (
     headers: forwardHeaders,
     ...(requestData.query ? { params: requestData.query } : {}),
     ...(requestData.body ? { data: requestData.body } : {}),
-    timeout: 60000, // 60s timeout
+    timeout: 60000,
     validateStatus: () => true
   };
 
@@ -79,7 +68,6 @@ export const executeWorkflow = async (
     const resp = await axios(axiosConfig);
     downstreamResponse = resp.data;
     statusCode = resp.status;
-
     steps.push({
       step: "ServiceCall",
       url: fullUrl,
@@ -102,10 +90,11 @@ export const executeWorkflow = async (
     throw { message: `Downstream call failed: ${err.message}`, workflowSteps: steps, details: err };
   }
 
-  // Notification placeholder
-  if (workflow.notification && Array.isArray(workflow.notificationSteps) && workflow.notificationSteps.length > 0) {
+  if (workflow.notification && Array.isArray(workflow.notificationSteps)) {
     for (const n of workflow.notificationSteps) {
-      steps.push({ step: "Notification", type: n.type, status: "QUEUED", timestamp: new Date().toISOString() });
+      if (n.enabled) {
+        steps.push({ step: "Notification", type: n.type, status: "QUEUED", timestamp: new Date().toISOString() });
+      }
     }
   }
 

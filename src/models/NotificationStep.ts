@@ -21,6 +21,7 @@ export interface INotificationConfig {
 }
 
 export interface INotificationStep extends Document {
+    enabled: any;
     type: string;
     config: INotificationConfig;
 }
