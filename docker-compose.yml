@@ -1,0 +1,15 @@
+version: "3.8"
+
+services:
+  app:
+    build: .
+    container_name: ts-api-engine-service-1606
+    ports:
+      - "1606:1606"
+    environment:
+      - NODE_ENV=development
+      - PORT=1606
+    volumes:
+      - .:/app
+      - /app/node_modules
+    command: npm run dev
