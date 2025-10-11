@@ -52,6 +52,8 @@ export const executeWorkflow = async (workflowCode: string, apiEndpoint: string,
 
   const method = (workflow.method || originalMethod || "GET").toUpperCase();
 
+  console.log(`[Orchestrator] Calling ${method} ${fullUrl} for workflow ${workflowCode}`);
+
   const axiosConfig: AxiosRequestConfig = {
     url: fullUrl,
     method: method as any,
