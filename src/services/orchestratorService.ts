@@ -1,47 +1,53 @@
-import Workflow from "../models/WorkflowSchema.js";
-import ServiceRegistry from "../models/ServiceRegistrySchema.js";
+import { ConfigLoader } from "../config/ConfigLoader.js";
 import axios, { AxiosRequestConfig } from "axios";
+import { INotificationStep } from "../types/config.types.js";
 
 function normalizeEndpoint(ep: string): string {
   if (!ep) return "/";
   return ep.startsWith("/") ? ep : "/" + ep;
 }
 
-export const executeWorkflow = async (workflowCode: string, apiEndpoint: string, requestData: { body?: any; headers?: any; query?: any }, transactionId: string, originalMethod?: string) => {
+export const executeWorkflow = async (workflowId: string, requestData: { body?: any; headers?: any; query?: any }, transactionId: string, originalMethod?: string) => {
   const startTime = Date.now();
 
-  const workflow = await Workflow.findOne({ workflowId: workflowCode }).lean();
-  if (!workflow) throw new Error(`Workflow ${workflowCode} not found`);
+  const config = ConfigLoader.getInstance().getWorkflow(workflowId);
 
-  const service = await ServiceRegistry.findOne({ microserviceId: workflow.microserviceId }).lean();
-  if (!service) throw new Error(`Microservice ${workflow.microserviceId} not registered`);
-
-  const env = workflow.environment || "local";
-
-  let baseUrl: string | undefined = undefined;
-  if (service.baseUrls) {
-    if (typeof service.baseUrls.get === "function") baseUrl = (service.baseUrls as unknown as Map<string, string>).get(env);
-    if (!baseUrl && typeof (service.baseUrls as any)[env] === "string")
-      baseUrl = (service.baseUrls as any)[env];
+  if (!config) {
+    throw new Error(`Workflow ${workflowId} not found`);
   }
-  baseUrl = baseUrl || (service as any).baseUrl || (service as any).baseURI;
-  if (!baseUrl) throw new Error(`Base URL not found for environment '${env}' for microservice ${service.microserviceId}`);
 
-  const endpointPath = normalizeEndpoint(apiEndpoint);
+  const { workflow, service } = config;
+  // Priority: 1. System Env (TARGET_ENV) -> 2. Workflow Default -> 3. 'local'
+  const env = process.env.TARGET_ENV || workflow.environment || "local";
+
+  let baseUrl: string | undefined = service.baseUrls[env];
+
+  // Fallback: if specific env not found, try 'local' or first available
+  if (!baseUrl) {
+    baseUrl = service.baseUrls['local'] || Object.values(service.baseUrls)[0];
+  }
+
+  if (!baseUrl) throw new Error(`Base URL not found for environment '${env}' for microservice ${service.id}`);
+
+  const endpointPath = normalizeEndpoint(workflow.path);
   const fullUrl = baseUrl.replace(/\/+$/, "") + endpointPath;
 
   const steps: any[] = [];
 
-  if (workflow.tokenCheck) {
+  if (workflow.steps.tokenCheck) {
     steps.push({ step: "TokenCheck Step", status: "SKIPPED_OR_PASSED", timestamp: new Date().toISOString() });
   }
 
-  if (workflow.otpFlow) {
+  if (workflow.steps.otpFlow) {
     steps.push({ step: "OTPFlow Step", status: "PENDING", timestamp: new Date().toISOString() });
   }
 
-  if (workflow.notification) {
-    steps.push({ step: "Ntofication Step", status: "PENDING", timestamp: new Date().toISOString() });
+  // "notifications" is an array in the new config, but was a boolean flag + array in old model.
+  // We check if the array exists and has items.
+  const hasNotifications = workflow.steps.notifications && workflow.steps.notifications.length > 0;
+
+  if (hasNotifications) {
+    steps.push({ step: "Notification Step", status: "PENDING", timestamp: new Date().toISOString() });
   }
 
   steps.push({ step: "Log API call", status: "SUCCESS", timestamp: new Date().toISOString() });
@@ -52,7 +58,7 @@ export const executeWorkflow = async (workflowCode: string, apiEndpoint: string,
 
   const method = (workflow.method || originalMethod || "GET").toUpperCase();
 
-  console.log(`[Orchestrator] Calling ${method} ${fullUrl} for workflow ${workflowCode}`);
+  console.log(`[Orchestrator] Calling ${method} ${fullUrl} for workflow ${workflowId}`);
 
   const axiosConfig: AxiosRequestConfig = {
     url: fullUrl,
@@ -94,9 +100,9 @@ export const executeWorkflow = async (workflowCode: string, apiEndpoint: string,
     throw { message: `Downstream call failed: ${err.message}`, workflowSteps: steps, details: err };
   }
 
-  if (workflow.notification && Array.isArray(workflow.notificationSteps)) {
-    for (const n of workflow.notificationSteps) {
-      if (n.enabled) {
+  if (hasNotifications && workflow.steps.notifications) {
+    for (const n of workflow.steps.notifications) {
+      if (n.enabled !== false) { // Default to true if undefined
         steps.push({ step: "Notification", type: n.type, status: "QUEUED", timestamp: new Date().toISOString() });
       }
     }
@@ -105,8 +111,8 @@ export const executeWorkflow = async (workflowCode: string, apiEndpoint: string,
   const totalMs = Date.now() - startTime;
 
   return {
-    workflowCode,
-    microservice: { id: service.microserviceId, name: service.name, environment: env },
+    workflowCode: workflowId,
+    microservice: { id: service.id, name: service.name, environment: env },
     workflowSteps: steps,
     totalMs,
     downstreamBody: downstreamResponse

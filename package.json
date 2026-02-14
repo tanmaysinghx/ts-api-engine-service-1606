@@ -5,46 +5,37 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node dist/server.js",
+    "build": "tsc",
     "prod": "node --loader ts-node/esm src/server.ts",
-    "dev": "nodemon --exec node --loader ts-node/esm src/server.ts"
+    "dev": "tsx watch src/server.ts"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@types/js-yaml": "^4.0.9",
     "axios": "^1.12.2",
-    "bcrypt": "^6.0.0",
-    "compression": "^1.8.1",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
-    "express-rate-limit": "^8.1.0",
-    "helmet": "^8.1.0",
-    "joi": "^18.0.1",
+    "js-yaml": "^4.1.1",
     "jsonwebtoken": "^9.0.2",
-    "mongoose": "^8.19.0",
-    "morgan": "^1.10.1",
-    "multer": "^2.0.2",
-    "passport": "^0.7.0",
-    "socket.io": "^4.8.1",
     "swagger-ui-express": "^5.0.1",
     "uuid": "^13.0.0",
-    "winston": "^3.18.3",
-    "zod": "^4.1.11"
+    "winston": "^3.18.3"
   },
   "devDependencies": {
-    "@types/bcrypt": "^6.0.0",
     "@types/cookie-parser": "^1.4.9",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
-    "@types/morgan": "^1.9.10",
     "@types/node": "^24.6.2",
-    "@types/swagger-ui-express": "^4.1.8",
     "@types/uuid": "^10.0.0",
+    "nodemon": "^3.1.11",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   },
   "type": "module"
