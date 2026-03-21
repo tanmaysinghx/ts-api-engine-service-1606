@@ -13,8 +13,11 @@ RUN npm install
 # Copy the rest of your application code
 COPY . .
 
+# Build the TypeScript application
+RUN npm run build
+
 # Expose the application port
 EXPOSE 1606
 
-# Start the application
-CMD ["npm", "run", "prod"]
+# Start the compiled application natively (avoids experimental ts-node crashes)
+CMD ["npm", "start"]
