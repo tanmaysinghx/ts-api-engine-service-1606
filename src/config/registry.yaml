@@ -4,7 +4,8 @@ services:
     description: "Authentication and Authorization Microservice"
     baseUrls:
       local: "http://localhost:1625"
-      docker: "http://ts-auth-service-1625:1625"
+      qa: "http://ts-auth-service-1625-qa:1625"
+      prod: "http://ts-auth-service-1625-prod:1625"
     workflows:
       # --- Auth Routes ---
       - id: "auth-register"
