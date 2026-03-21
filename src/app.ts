@@ -24,17 +24,17 @@ app.use(helmet());
 // 2. Compression: Gzip compresses responses for speed
 app.use(compression());
 
-// 3. CORS: Allow all origins for now (restrict in production)
+// 3. CORS: environment-controlled
 app.use(cors({
-    origin: '*', // Change to specific domain in production
+    origin: process.env.CORS_ORIGIN || '*', 
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization', 'x-orchestrator-transaction-id']
 }));
 
-// 4. Rate Limiting: Prevent abuse (100 reqs / 15 min per IP)
+// 4. Rate Limiting: environment-controlled
 const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 100,
+    windowMs: Number(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
+    max: Number(process.env.RATE_LIMIT_MAX) || 100,
     standardHeaders: true,
     legacyHeaders: false,
     message: { success: false, message: "Too many requests, please try again later." }
@@ -46,9 +46,10 @@ app.use(limiter);
 app.use(express.json({ limit: "100mb" }));
 app.use(cookieParser());
 app.use(transactionIdMiddleware);
-app.use(loggerConsole);
+// Removed loggerConsole in favor of centralized logging or refined middleware if needed
+// app.use(loggerConsole); 
 
-const apiVersion = env.API_VERSION || 'v1';
+const apiVersion = process.env.API_VERSION || 'v1';
 
 app.use(`/api/${apiVersion}`, healthCheckRoute);
 app.use(`/api/${apiVersion}/api-engine`, orchestratorRoute);

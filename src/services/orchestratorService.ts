@@ -1,6 +1,7 @@
 import { ConfigLoader } from "../config/ConfigLoader.js";
 import axios, { AxiosRequestConfig } from "axios";
 import { INotificationStep } from "../types/config.types.js";
+import logger from "../utils/logger.js";
 
 function normalizeEndpoint(ep: string): string {
   if (!ep) return "/";
@@ -58,7 +59,10 @@ export const executeWorkflow = async (workflowId: string, requestData: { body?: 
 
   const method = (workflow.method || originalMethod || "GET").toUpperCase();
 
-  console.log(`[Orchestrator] Calling ${method} ${fullUrl} for workflow ${workflowId}`);
+  logger.info(`[Orchestrator] Calling ${method} ${fullUrl} for workflow ${workflowId}`, {
+    transactionId,
+    env
+  });
 
   const axiosConfig: AxiosRequestConfig = {
     url: fullUrl,
