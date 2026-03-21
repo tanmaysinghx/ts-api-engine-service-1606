@@ -56,6 +56,28 @@ app.use(`/api/${apiVersion}/api-engine`, orchestratorRoute);
 app.use(`/api/${apiVersion}/onboard-service`, onboardingRoute);
 app.use(`/api/${apiVersion}/admin`, adminRoute);
 
+// Shorthand Gateway Route: Support /api-gateway/:port/path?workflowCode=...
+import { executeWorkflow } from "./services/orchestratorService.js";
+app.all('/api-gateway/:port/*', async (req, res, next) => {
+    const { workflowCode } = req.query;
+    if (!workflowCode) {
+        return res.status(400).json({ success: false, message: "workflowCode query parameter is required" });
+    }
+    
+    const transactionId = `tx_sh_${Date.now()}`;
+    try {
+        const result = await executeWorkflow(
+            workflowCode as string,
+            { body: req.body, headers: req.headers, query: req.query },
+            transactionId,
+            req.method
+        );
+        res.status(200).json({ success: true, transactionId, data: result.downstreamBody });
+    } catch (err: any) {
+        res.status(500).json({ success: false, transactionId, message: err.message });
+    }
+});
+
 setupSwagger(app);
 
 app.use(errorHandler);

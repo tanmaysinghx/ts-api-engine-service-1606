@@ -13,7 +13,15 @@ export class ConfigLoader {
     private configPath: string;
 
     private constructor() {
-        this.configPath = path.resolve(__dirname, 'registry.yaml');
+        // Try to find registry.yaml in 'dist/config/' (compiled) or 'src/config/' (dev)
+        const possiblePaths = [
+            path.resolve(__dirname, 'registry.yaml'),
+            path.resolve(__dirname, '../../src/config/registry.yaml'),
+            path.join(process.cwd(), 'src/config/registry.yaml'),
+            path.join(process.cwd(), 'dist/config/registry.yaml')
+        ];
+
+        this.configPath = possiblePaths.find(p => fs.existsSync(p)) || possiblePaths[0];
         this.config = this.loadConfig();
     }
 
