@@ -58,7 +58,7 @@ app.use(`/api/${apiVersion}/admin`, adminRoute);
 
 // Shorthand Gateway Route: Support /api-gateway/:port/path?workflowCode=...
 import { executeWorkflow } from "./services/orchestratorService.js";
-app.all('/api-gateway/:port/*', async (req, res, next) => {
+app.all('/api-gateway/:port/:path*', async (req, res, next) => {
     const { workflowCode } = req.query;
     if (!workflowCode) {
         return res.status(400).json({ success: false, message: "workflowCode query parameter is required" });
