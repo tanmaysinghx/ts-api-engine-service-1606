@@ -11,7 +11,12 @@ function normalizeEndpoint(ep: string): string {
 export const executeWorkflow = async (workflowId: string, requestData: { body?: any; headers?: any; query?: any }, transactionId: string, originalMethod?: string) => {
   const startTime = Date.now();
 
-  const config = ConfigLoader.getInstance().getWorkflow(workflowId);
+  let config = ConfigLoader.getInstance().getWorkflow(workflowId);
+
+  // Fallback: try looking up by numeric workflowCode
+  if (!config) {
+    config = ConfigLoader.getInstance().getWorkflowByCode(workflowId);
+  }
 
   if (!config) {
     throw new Error(`Workflow ${workflowId} not found`);
@@ -119,6 +124,7 @@ export const executeWorkflow = async (workflowId: string, requestData: { body?: 
     microservice: { id: service.id, name: service.name, environment: env },
     workflowSteps: steps,
     totalMs,
+    statusCode,
     downstreamBody: downstreamResponse
   };
 };

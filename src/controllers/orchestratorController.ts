@@ -50,7 +50,8 @@ export const triggerWorkflowController = async (req: Request, res: Response) => 
       meta: { timestamp: new Date().toISOString(), apiVersion: "v1", engineVersion: "1.0.0" }
     };
 
-    res.status(200).json(successResponse);
+    const httpStatus = (payload.statusCode >= 200 && payload.statusCode < 600) ? payload.statusCode : 200;
+    res.status(httpStatus).json(successResponse);
   } catch (err: any) {
     const errorResponse: WorkflowErrorResponse = {
       success: false,

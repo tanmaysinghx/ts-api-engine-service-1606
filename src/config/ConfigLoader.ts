@@ -68,4 +68,16 @@ export class ConfigLoader {
         }
         return undefined;
     }
+
+    public getWorkflowByCode(workflowCode: string): { workflow: IWorkflowConfig, service: IServiceConfig } | undefined {
+        for (const service of this.config.services) {
+            if (service.workflows) {
+                const workflow = service.workflows.find((w: any) => w.workflowCode === workflowCode);
+                if (workflow) {
+                    return { workflow, service };
+                }
+            }
+        }
+        return undefined;
+    }
 }
