@@ -26,7 +26,7 @@ app.use(compression());
 
 // 3. CORS: environment-controlled
 app.use(cors({
-    origin: process.env.CORS_ORIGIN || '*', 
+    origin: process.env.CORS_ORIGIN || '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization', 'x-orchestrator-transaction-id']
 }));
@@ -58,12 +58,12 @@ app.use(`/api/${apiVersion}/admin`, adminRoute);
 
 // Shorthand Gateway Route: Support /api-gateway/:port/path?workflowCode=...
 import { executeWorkflow } from "./services/orchestratorService.js";
-app.all('/api-gateway/:port/:path*', async (req, res, next) => {
+app.use('/api-gateway/:port', async (req, res, next) => {
     const { workflowCode } = req.query;
     if (!workflowCode) {
         return res.status(400).json({ success: false, message: "workflowCode query parameter is required" });
     }
-    
+
     const transactionId = `tx_sh_${Date.now()}`;
     try {
         const result = await executeWorkflow(
